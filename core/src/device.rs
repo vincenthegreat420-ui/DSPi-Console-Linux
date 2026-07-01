@@ -94,6 +94,7 @@ impl DeviceManager {
                 Ok(h) => h,
                 Err(_) => continue,
             };
+            let _ = handle.set_auto_detach_kernel_driver(true);
             let dev_serial = match handle.read_serial_number_string_ascii(&desc) {
                 Ok(s) => s,
                 Err(_) => continue,
