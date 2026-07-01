@@ -1,29 +1,5 @@
-name: Build DSPi Core
-
-on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
-
-jobs:
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install System Dependencies
+ - name: Build Core
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libusb-1.0-0-dev
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build Core
-        run: |
-          cd "DSPi Console Unified"
           cargo build --release
 
       - name: Upload Artifacts
@@ -31,5 +7,5 @@ jobs:
         with:
           name: dspi-core-linux
           path: |
-            DSPi Console Unified/target/release/libdspi_core.so
-            DSPi Console Unified/target/release/libdspi_core.a
+            target/release/libdspi_core.so
+            target/release/libdspi_core.a
