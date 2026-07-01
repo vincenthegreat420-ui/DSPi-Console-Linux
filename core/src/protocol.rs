@@ -7,7 +7,7 @@ use crate::types::*;
 
 // ── USB Device IDs ──────────────────────────────────────────────────
 
-pub const VENDOR_ID: u16 = 0x2e8a;
+pub const VENDOR_ID: u16 = 0x2e8b;
 pub const PRODUCT_ID: u16 = 0xfeaa;
 
 // ── bmRequestType ───────────────────────────────────────────────────
