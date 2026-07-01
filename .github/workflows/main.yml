@@ -1,4 +1,4 @@
-name: Build DSPi Core
+name: Build Whole App
 
 on:
   push:
@@ -16,19 +16,33 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libusb-1.0-0-dev
+          sudo apt-get install -y libusb-1.0-0-dev qtbase5-dev qtdeclarative5-dev qtquickcontrols2-5-dev qtmodern-
+          # Примечание: ставим зависимости для сборки ядра и Qt5 на Ubuntu
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Core
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
+      - name: Build Rust Core
         run: |
           cargo build --release
 
-      - name: Upload Artifacts
+      - name: Generate C Header
+        run: |
+          mkdir -p include
+          cbindgen --config core/cbindgen.toml --crate dspi-core --output include/dspi_core.h
+
+      - name: Build Qt GUI
+        run: |
+          cd qt
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+
+      - name: Upload Ready Application
         uses: actions/upload-artifact@v4
         with:
-          name: dspi-core-linux
-          path: |
-            target/release/libdspi_core.so
-            target/release/libdspi_core.a
+          name: dspi-console-linux
+          path: qt/build/DSPiConsole
