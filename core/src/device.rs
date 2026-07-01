@@ -55,6 +55,7 @@ impl DeviceManager {
         }
 
         let handle = device.open().ok()?;
+        let _ = handle.set_auto_detach_kernel_driver(true);
         let serial = handle
             .read_serial_number_string_ascii(&desc)
             .unwrap_or_default();
