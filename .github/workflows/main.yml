@@ -1,47 +1,53 @@
-name: Build Whole App
+name: Build Linux Library
 
 on:
   push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  workflow_dispatch: # Позволяет запускать сборку вручную через сайт GitHub
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libusb-1.0-0-dev qtbase5-dev qtdeclarative5-dev qtquickcontrols2-5-dev libudev-dev
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libusb-1.0-0-dev
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+    - name: Set up Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cbindgen
-        run: cargo install cbindgen
+    - name: Install cbindgen
+      run: |
+        cargo install cbindgen --version 0.26.0
 
-      - name: Build Rust Core
-        run: |
-          cargo build --release
+    - name: Rust Cache
+      uses: swatinem/rust-cache@v2
+      with:
+        workspaces: "DSPi Console Unified"
 
-      - name: Generate C Header
-        run: |
-          mkdir -p include
-          cbindgen --config core/cbindgen.toml --crate dspi-core --output include/dspi_core.h
+    - name: Build Core Library
+      run: |
+        cd "DSPi Console Unified"
+        cargo build --release
 
-      - name: Build Qt GUI
-        run: |
-          cd qt
-          mkdir build && cd build
-          cmake ..
-          make -j$(nproc)
+    - name: Generate C Header
+      run: |
+        cd "DSPi Console Unified"
+        mkdir -p include
+        cbindgen --config core/cbindgen.toml --crate dspi-core --output include/dspi_core.h
 
-      - name: Upload Ready Application
-        uses: actions/upload-artifact@v4
-        with:
-          name: dspi-console-linux
-          path: qt/build/DSPiConsole
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dspi-core-linux-x86_64
+        path: |
+          DSPi Console Unified/target/release/libdspi_core.so
+          DSPi Console Unified/target/release/libdspi_core.a
+          DSPi Console Unified/include/dspi_core.h
