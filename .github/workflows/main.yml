@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch:
+  workflow_dispatch: # Позволяет запускать сборку вручную через сайт GitHub
 
 jobs:
   build-linux:
@@ -15,12 +15,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Устанавливаем системные зависимости для работы с USB и сборки именно Qt5 приложений
+    # 1. Устанавливаем системные зависимости для работы с USB, udev и сборки Qt5 приложений
     - name: Install System Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           libusb-1.0-0-dev \
+          libudev-dev \
           build-essential \
           cmake \
           qtbase5-dev \
@@ -35,7 +36,7 @@ jobs:
       run: |
         cargo install cbindgen --version 0.26.0
 
-    # Ищем папку с Rust бэкендом и компилируем core-библиотеку
+    # 2. Ищем папку с Rust бэкендом и компилируем core-библиотеку
     - name: Build Core Library
       run: |
         MANIFEST_PATH=$(find . -name "Cargo.toml" -not -path "*/target/*" | head -n 1)
@@ -50,7 +51,7 @@ jobs:
         cd "$PROJECT_DIR"
         cargo build --release
 
-    # Генерируем заголовочный файл Си (dspi_core.h) в структуре проекта
+    # 3. Генерируем заголовочный файл Си (dspi_core.h) в структуре проекта
     - name: Generate C Header
       run: |
         cd "${{ env.PROJECT_DIR }}"
@@ -61,7 +62,7 @@ jobs:
           cbindgen --crate dspi-core --output include/dspi_core.h
         fi
 
-    # Находим папку qt, связываем её с собранной библиотекой и компилируем GUI
+    # 4. Находим папку qt, связываем её с собранной библиотекой и компилируем GUI
     - name: Build Qt GUI App
       run: |
         QT_DIR=$(find . -maxdepth 3 -type d -name "qt" | head -n 1)
@@ -77,7 +78,7 @@ jobs:
         cmake .. -DCMAKE_BUILD_TYPE=Release
         cmake --build . --config Release -j$(nproc)
 
-    # Выгружаем в артефакты и бэкенд, и готовый исполняемый файл интерфейса
+    # 5. Выгружаем в артефакты и бэкенд, и готовый исполняемый файл интерфейса
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
