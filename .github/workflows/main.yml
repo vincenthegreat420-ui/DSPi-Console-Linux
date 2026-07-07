@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Позволяет запускать сборку вручную через сайт GitHub
+  workflow_dispatch:
 
 jobs:
   build-linux:
@@ -27,27 +27,38 @@ jobs:
       run: |
         cargo install cbindgen --version 0.26.0
 
-    - name: Rust Cache
-      uses: swatinem/rust-cache@v2
-      with:
-        workspaces: "DSPi Console Unified"
-
+    # Находим папку с Cargo.toml динамически и запускаем сборку
     - name: Build Core Library
       run: |
-        cd "DSPi Console Unified"
+        MANIFEST_PATH=$(find . -name "Cargo.toml" -not -path "*/target/*" | head -n 1)
+        if [ -z "$MANIFEST_PATH" ]; then
+          echo "Error: Cargo.toml not found in the repository!"
+          exit 1
+        fi
+        PROJECT_DIR=$(dirname "$MANIFEST_PATH")
+        echo "Found Rust project in: $PROJECT_DIR"
+        echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+        
+        cd "$PROJECT_DIR"
         cargo build --release
 
+    # Генерируем заголовочный файл Си в найденной папке
     - name: Generate C Header
       run: |
-        cd "DSPi Console Unified"
+        cd "${{ env.PROJECT_DIR }}"
         mkdir -p include
-        cbindgen --config core/cbindgen.toml --crate dspi-core --output include/dspi_core.h
+        if [ -f "core/cbindgen.toml" ]; then
+          cbindgen --config core/cbindgen.toml --crate dspi-core --output include/dspi_core.h
+        else
+          cbindgen --crate dspi-core --output include/dspi_core.h
+        fi
 
+    # Собираем артефакты, используя динамический путь
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: dspi-core-linux-x86_64
         path: |
-          DSPi Console Unified/target/release/libdspi_core.so
-          DSPi Console Unified/target/release/libdspi_core.a
-          DSPi Console Unified/include/dspi_core.h
+          ${{ env.PROJECT_DIR }}/target/release/libdspi_core.so
+          ${{ env.PROJECT_DIR }}/target/release/libdspi_core.a
+          ${{ env.PROJECT_DIR }}/include/dspi_core.h
