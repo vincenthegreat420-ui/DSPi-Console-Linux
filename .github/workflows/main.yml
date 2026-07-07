@@ -1,4 +1,4 @@
-name: Build Linux Library
+name: Build Linux Library and GUI
 
 on:
   push:
@@ -15,10 +15,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 1. Устанавливаем системные зависимости для работы с USB и сборки Qt6 приложений
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libusb-1.0-0-dev
+        sudo apt-get install -y \
+          libusb-1.0-0-dev \
+          build-essential \
+          cmake \
+          qt6-base-dev \
+          qt6-declarative-dev \
+          libgl1-mesa-dev
 
     - name: Set up Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -27,7 +34,7 @@ jobs:
       run: |
         cargo install cbindgen --version 0.26.0
 
-    # Находим папку с Cargo.toml динамически и запускаем сборку
+    # 2. Ищем папку с Rust бэкендом и компилируем core-библиотеку
     - name: Build Core Library
       run: |
         MANIFEST_PATH=$(find . -name "Cargo.toml" -not -path "*/target/*" | head -n 1)
@@ -42,7 +49,7 @@ jobs:
         cd "$PROJECT_DIR"
         cargo build --release
 
-    # Генерируем заголовочный файл Си в найденной папке
+    # 3. Генерируем заголовочный файл Си (dspi_core.h) в структуре проекта
     - name: Generate C Header
       run: |
         cd "${{ env.PROJECT_DIR }}"
@@ -53,12 +60,29 @@ jobs:
           cbindgen --crate dspi-core --output include/dspi_core.h
         fi
 
-    # Собираем артефакты, используя динамический путь
+    # 4. Находим папку qt, связываем её с собранной библиотекой и компилируем GUI
+    - name: Build Qt GUI App
+      run: |
+        QT_DIR=$(find . -maxdepth 3 -type d -name "qt" | head -n 1)
+        if [ -z "$QT_DIR" ]; then
+          echo "Error: 'qt' directory not found in the repository!"
+          exit 1
+        fi
+        echo "Found Qt project in: $QT_DIR"
+        echo "QT_DIR=$QT_DIR" >> $GITHUB_ENV
+        
+        cd "$QT_DIR"
+        mkdir build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --config Release -j$(nproc)
+
+    # 5. Выгружаем в артефакты и бэкенд, и готовый исполняемый файл интерфейса
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: dspi-core-linux-x86_64
+        name: dspi-complete-linux-x86_64
         path: |
           ${{ env.PROJECT_DIR }}/target/release/libdspi_core.so
-          ${{ env.PROJECT_DIR }}/target/release/libdspi_core.a
           ${{ env.PROJECT_DIR }}/include/dspi_core.h
+          ${{ env.QT_DIR }}/build/DSPiConsole
+          ${{ env.QT_DIR }}/build/dspi-gui
