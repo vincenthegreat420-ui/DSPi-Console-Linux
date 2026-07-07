@@ -15,7 +15,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 1. Устанавливаем системные зависимости для работы с USB и сборки Qt6 приложений
+    # Устанавливаем системные зависимости для работы с USB и сборки именно Qt5 приложений
     - name: Install System Dependencies
       run: |
         sudo apt-get update
@@ -23,8 +23,9 @@ jobs:
           libusb-1.0-0-dev \
           build-essential \
           cmake \
-          qt6-base-dev \
-          qt6-declarative-dev \
+          qtbase5-dev \
+          qtdeclarative5-dev \
+          qtquickcontrols2-5-dev \
           libgl1-mesa-dev
 
     - name: Set up Rust toolchain
@@ -34,7 +35,7 @@ jobs:
       run: |
         cargo install cbindgen --version 0.26.0
 
-    # 2. Ищем папку с Rust бэкендом и компилируем core-библиотеку
+    # Ищем папку с Rust бэкендом и компилируем core-библиотеку
     - name: Build Core Library
       run: |
         MANIFEST_PATH=$(find . -name "Cargo.toml" -not -path "*/target/*" | head -n 1)
@@ -49,7 +50,7 @@ jobs:
         cd "$PROJECT_DIR"
         cargo build --release
 
-    # 3. Генерируем заголовочный файл Си (dspi_core.h) в структуре проекта
+    # Генерируем заголовочный файл Си (dspi_core.h) в структуре проекта
     - name: Generate C Header
       run: |
         cd "${{ env.PROJECT_DIR }}"
@@ -60,7 +61,7 @@ jobs:
           cbindgen --crate dspi-core --output include/dspi_core.h
         fi
 
-    # 4. Находим папку qt, связываем её с собранной библиотекой и компилируем GUI
+    # Находим папку qt, связываем её с собранной библиотекой и компилируем GUI
     - name: Build Qt GUI App
       run: |
         QT_DIR=$(find . -maxdepth 3 -type d -name "qt" | head -n 1)
@@ -76,7 +77,7 @@ jobs:
         cmake .. -DCMAKE_BUILD_TYPE=Release
         cmake --build . --config Release -j$(nproc)
 
-    # 5. Выгружаем в артефакты и бэкенд, и готовый исполняемый файл интерфейса
+    # Выгружаем в артефакты и бэкенд, и готовый исполняемый файл интерфейса
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
